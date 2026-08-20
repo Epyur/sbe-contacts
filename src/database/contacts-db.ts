@@ -77,7 +77,6 @@ export class ContactsDatabase {
 
   delete(id: number): void {
     this.data.contacts = this.data.contacts.filter(c => c.id !== id);
-    this.data.pending_deletes = this.data.pending_deletes.filter(d => d !== id);
   }
 
   /** Добавляет контакт в очередь удалений (при офлайне). */

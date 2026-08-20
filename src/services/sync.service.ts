@@ -47,6 +47,7 @@ export class ContactsSyncService {
       try {
         const res = await this.deleteOnServer(token, id);
         if (res.deleted > 0) {
+          this.db.unqueueDelete(id);
           this.db.delete(id);
           deleted++;
         }

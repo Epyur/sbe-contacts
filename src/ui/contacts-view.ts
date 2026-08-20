@@ -144,6 +144,7 @@ class ContactEditModal extends Modal {
         org_type: inputs.org_type.value.trim(),
         notes: notesInput.value.trim(),
         curator_email: this.myEmail,
+        sync_status: 'local',
         updated_at: now,
       };
       this.plugin.contactsDb.add(updated);
