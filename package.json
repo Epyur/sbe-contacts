@@ -1,6 +1,6 @@
 {
   "name": "sbe-contacts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Модуль контактов как SBE-плагин: визитки с QR (vCard), локальная БД yourbase/sbe_contacts/, синхронизация с contacts-service через JWT из ЦУП, кураторы и права на удаление.",
   "main": "main.js",
   "scripts": {

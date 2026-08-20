@@ -35,6 +35,8 @@ export default class SbeContactsPlugin extends Plugin {
 
     // Одноразовая миграция из legacy-кэша монолита (contacts_data.json / yougile_cache.json).
     await this.migrateLegacyOnce();
+    // Автопочинка org_type у уже мигрированных контактов (UUID колонки YouGile → название).
+    await this.fixLegacyOrgTypes();
 
     this.registerView(
       SBE_CONTACTS_VIEW_TYPE,
@@ -110,6 +112,15 @@ export default class SbeContactsPlugin extends Plugin {
     let raw: LegacyContact[] = [];
     let colTitle = new Map<string, string>();
     try {
+      // Колонки YouGile читаем ВСЕГДА: orgType в legacy-контактах — UUID колонки,
+      // его нужно резолвить в название (не только в fallback-ветке yougile_cache.json).
+      if (await adapter.exists(LEGACY_CACHE_PATH)) {
+        const parsedCache = JSON.parse(await adapter.read(LEGACY_CACHE_PATH)) as {
+          columns?: Array<{ id: string; title: string }>;
+        };
+        const columns = Array.isArray(parsedCache.columns) ? parsedCache.columns : [];
+        colTitle = new Map(columns.map(c => [c.id, c.title]));
+      }
       if (await adapter.exists(LEGACY_CONTACTS_PATH)) {
         const parsed = JSON.parse(await adapter.read(LEGACY_CONTACTS_PATH)) as {
           contacts?: LegacyContact[];
@@ -124,10 +135,7 @@ export default class SbeContactsPlugin extends Plugin {
             description: string;
             columnId: string;
           }>;
-          columns?: Array<{ id: string; title: string }>;
         };
-        const columns = Array.isArray(parsed.columns) ? parsed.columns : [];
-        colTitle = new Map(columns.map(c => [c.id, c.title]));
         const tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
         for (const t of tasks) {
           if (!t.description) continue;
@@ -203,5 +211,48 @@ export default class SbeContactsPlugin extends Plugin {
     if (added > 0) {
       new Notice(`Контакты: импортировано ${added} контактов из legacy-БД. Они будут отправлены на сервер при синхронизации.`);
     }
+  }
+
+  /** Автопочинка org_type: UUID колонки YouGile → название (если монолит ещё доступен).
+   *  Идемпотентна. При изменении поднимает updated_at и помечает local, чтобы
+   *  исправленное значение уехало на сервер push'ем (иначе LWW оставил бы UUID). */
+  private async fixLegacyOrgTypes(): Promise<void> {
+    const adapter = this.app.vault.adapter;
+    let colTitle = new Map<string, string>();
+    try {
+      if (await adapter.exists(LEGACY_CACHE_PATH)) {
+        const parsed = JSON.parse(await adapter.read(LEGACY_CACHE_PATH)) as {
+          columns?: Array<{ id: string; title: string }>;
+        };
+        const columns = Array.isArray(parsed.columns) ? parsed.columns : [];
+        colTitle = new Map(columns.map(c => [c.id, c.title]));
+      }
+    } catch (e: unknown) {
+      console.warn('Контакты: не удалось прочитать колонки legacy для починки org_type:', errorMessage(e));
+    }
+    if (colTitle.size === 0) return;
+
+    let changed = 0;
+    const now = new Date().toISOString();
+    for (const c of this.contactsDb.getAll()) {
+      const title = colTitle.get(c.org_type);
+      if (!title) continue;
+      c.org_type = title;
+      c.updated_at = now;
+      c.sync_status = 'local';
+      changed++;
+    }
+    if (changed === 0) return;
+
+    const types = new Set<string>();
+    for (const c of this.contactsDb.getAll()) {
+      if (c.org_type) types.add(c.org_type);
+    }
+    for (const t of this.contactsDb.getOrgTypes()) {
+      if (!colTitle.has(t)) types.add(t);
+    }
+    this.contactsDb.setOrgTypes(Array.from(types));
+    await this.contactsDb.save();
+    console.warn(`Контакты: исправлено ${changed} контактов (org_type: UUID колонки → название). Правки уйдут на сервер при синхронизации.`);
   }
 }

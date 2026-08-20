@@ -116,6 +116,11 @@ export class ContactsDatabase {
     }
   }
 
+  /** Полностью пересобирает реестр org_types (после массового исправления значений). */
+  setOrgTypes(types: string[]): void {
+    this.data.org_types = Array.from(new Set(types.filter(t => (t || '').trim())));
+  }
+
   /** Удаляет дубликаты по id, оставляя самую свежую запись. */
   dedupe(): number {
     const seen = new Map<number, number>();
