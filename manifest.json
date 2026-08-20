@@ -1,0 +1,9 @@
+{
+  "id": "sbe-contacts",
+  "name": "Контакты",
+  "version": "0.1.0",
+  "minAppVersion": "1.11.4",
+  "description": "Модуль контактов как SBE-плагин: визитки с QR (vCard), локальная БД yourbase/sbe_contacts/, синхронизация с contacts-service через JWT из ЦУП, кураторы и права на удаление.",
+  "author": "Полищук Евгений (polishchuk@tn.ru)",
+  "isDesktopOnly": true
+}

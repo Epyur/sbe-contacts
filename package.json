@@ -1,0 +1,23 @@
+{
+  "name": "sbe-contacts",
+  "version": "0.1.0",
+  "description": "Модуль контактов как SBE-плагин: визитки с QR (vCard), локальная БД yourbase/sbe_contacts/, синхронизация с contacts-service через JWT из ЦУП, кураторы и права на удаление.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/qrcode": "^1.5.5",
+    "esbuild": "^0.28.1",
+    "obsidian": "^1.11.4",
+    "typescript": "^5.8.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
