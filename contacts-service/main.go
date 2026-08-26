@@ -88,6 +88,8 @@ func main() {
 		Addr:              ":" + port,
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	log.Printf("contacts-service listening on :%s", port)
@@ -138,7 +140,8 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	var req PushRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	// Лимит 20 МБ — push шлёт пачку контактов.
+	if err := decodeJSON(w, r, &req, 20<<20); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
 		return
 	}
@@ -244,7 +247,7 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ID int64 `json:"id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(w, r, &req, 1<<20); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
 		return
 	}
@@ -302,4 +305,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		log.Printf("writeJSON: %v", err)
 	}
+}
+
+// decodeJSON читает JSON-тело с жёстким лимитом размера (защита от DoS памятью, ревью 1.4).
+func decodeJSON(w http.ResponseWriter, r *http.Request, v any, maxBytes int64) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+	return json.NewDecoder(r.Body).Decode(v)
 }
